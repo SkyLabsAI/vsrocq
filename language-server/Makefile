@@ -1,4 +1,4 @@
-dune_wrap = $(shell command -v coqc > /dev/null || echo "etc/rocq-wrap-coqc.sh")
+dune_wrap = $(shell dune exec -- which coqc > /dev/null || echo "etc/rocq-wrap-coqc.sh")
 dune_no_stop = $(dune_wrap) dune $(1)
 dune = $(dune_wrap) dune $(1) --stop-on-first-error
 dune_dev = $(dune_wrap) dune $(1) --stop-on-first-error --profile dev
