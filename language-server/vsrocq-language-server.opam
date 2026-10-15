@@ -28,7 +28,6 @@ depends: [
   "sexplib"
   "bechamel" { with-test }
   "ppx_yojson_conv"
-  "ppx_import"
   "ppx_optcomp"
   "memprof-limits"
   "result" { >= "1.5" }
