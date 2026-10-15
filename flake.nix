@@ -58,7 +58,6 @@
                   ppx_sexp_conv
                   ppx_deriving
                   ppx_optcomp
-                  ppx_import
                   sexplib
                   ppx_yojson_conv
                   lsp
@@ -100,7 +99,6 @@
                   ppx_sexp_conv
                   ppx_deriving
                   ppx_optcomp
-                  ppx_import
                   sexplib
                   ppx_yojson_conv
                   lsp
@@ -142,7 +140,6 @@
                   ppx_sexp_conv
                   ppx_deriving
                   ppx_optcomp
-                  ppx_import
                   sexplib
                   ppx_yojson_conv
                   lsp
@@ -184,7 +181,6 @@
                   ppx_sexp_conv
                   ppx_deriving
                   ppx_optcomp
-                  ppx_import
                   sexplib
                   ppx_yojson_conv
                   lsp
@@ -226,7 +222,6 @@
                   ppx_sexp_conv
                   ppx_deriving
                   ppx_optcomp
-                  ppx_import
                   sexplib
                   ppx_yojson_conv
                   lsp
@@ -268,7 +263,6 @@
                   ppx_sexp_conv
                   ppx_deriving
                   ppx_optcomp
-                  ppx_import
                   sexplib
                   ppx_yojson_conv
                   lsp
