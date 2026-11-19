@@ -15,6 +15,8 @@
 (** This toplevel implements an LSP-based server language for VsCode,
     used by the VsRocq extension. *)
 
+[%%import "vsrocq_config.mlh"]
+
 open Lsp.Types
 open Protocol
 open Protocol.LspWrapper
@@ -49,10 +51,17 @@ let log = Dm.Log.mk_log "lspManager"
 
 let conf_request_id = max_int
 
+[%%if lsp < (1,28,0)]
 let server_info = InitializeResult.create_serverInfo
   ~name:"vsrocq-language-server"
   ~version:"2.5.1"
   ()
+[%%else]
+let server_info = ServerInfo.create
+  ~name:"vsrocq-language-server"
+  ~version:"2.5.1"
+  ()
+[%%endif]
 
 type lsp_event =
   | Receive of Jsonrpc.Packet.t option
@@ -311,14 +320,27 @@ let textDocumentDidOpen params =
     update_view uri st;
     []
 
+let whole_document_range st =
+  let document = Dm.DocumentManager.Internal.document st in
+  Dm.Document.range_of_document document
+
+[%%if lsp < (1,28,0)]
+let text_edits_of_content_changes st =
+  List.map (fun TextDocumentContentChangeEvent.{ range; text; _ } ->
+    Option.default (whole_document_range st) range, text)
+[%%else]
+let text_edits_of_content_changes st =
+  List.map (function
+    | `TextDocumentContentChangePartial TextDocumentContentChangePartial.{ range; text; _ } -> range, text
+    | `TextDocumentContentChangeWholeDocument TextDocumentContentChangeWholeDocument.{ text } ->
+      whole_document_range st, text)
+[%%endif]
+
 let textDocumentDidChange params =
   let Lsp.Types.DidChangeTextDocumentParams.{ textDocument; contentChanges } = params in
   let uri = textDocument.uri in
   let@ { st; visible } = with_document "textDocumentDidChange" uri in
-  let mk_text_edit TextDocumentContentChangeEvent.{ range; text } =
-    Option.get range, text
-  in
-  let text_edits = List.map mk_text_edit contentChanges in
+  let text_edits = text_edits_of_content_changes st contentChanges in
   let st, events = Dm.DocumentManager.apply_text_edits st text_edits in
   replace_state (DocumentUri.to_path uri) st visible;
   update_view uri st;
@@ -450,13 +472,19 @@ let documentFoldingRange params =
     let folding_ranges = Dm.DocumentManager.get_folding_ranges st in
     Ok(Some folding_ranges)
 
-let documentSelectionRanges params =
+let selectionRanges params =
   let Lsp.Types.SelectionRangeParams.{ textDocument = { uri }; positions } = params in
   match Hashtbl.find_opt states (DocumentUri.to_path uri) with
-  | None -> log.debug (fun () -> "[documentSelectionRanges] ignoring event on non existent document"); Ok []
+  | None -> log.debug (fun () -> "[documentSelectionRanges] ignoring event on non existent document"); []
   | Some { st } ->
     log.debug (fun () -> "[documentSelectionRanges] getting selection ranges");
-    Ok (List.map (fun pos -> Dm.DocumentManager.get_selection_range st pos) positions)
+    List.map (fun pos -> Dm.DocumentManager.get_selection_range st pos) positions
+
+[%%if lsp < (1,28,0)]
+let documentSelectionRanges params = Ok (selectionRanges params)
+[%%else]
+let documentSelectionRanges params = Ok (Some (selectionRanges params))
+[%%endif]
 
 let documentSymbol params =
   let Lsp.Types.DocumentSymbolParams.{ textDocument = {uri} } = params in
@@ -595,6 +623,12 @@ let dispatch_request : type a. a Request.Client.t -> (a,error) result * events =
   | SetPrintingOption params -> rocqtopSetPrintingOption params
   | ResetPrintingOptions params -> rocqtopResetPrintingOptions params
 
+[%%if lsp < (1,28,0)]
+let is_initialized_notification = function Lsp.Client_notification.Initialized -> true | _ -> false
+[%%else]
+let is_initialized_notification = function Lsp.Client_notification.Initialized _ -> true | _ -> false
+[%%endif]
+
 let dispatch_std_notification =
   let open Lsp.Client_notification in function
   | TextDocumentDidOpen params -> log_notification "textDocument/didOpen";
@@ -609,7 +643,7 @@ let dispatch_std_notification =
     textDocumentDidClose params
   | ChangeConfiguration params -> log_notification "workspace/didChangeConfiguration";
     workspaceDidChangeConfiguration params
-  | Initialized -> []
+  | notification when is_initialized_notification notification -> []
   | Exit ->
     do_exit ()
   | UnknownNotification _ | _ -> log.debug (fun () -> "Received unknown notification"); []
